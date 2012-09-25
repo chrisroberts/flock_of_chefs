@@ -33,6 +33,7 @@ module FlockOfChefs
               :port => 2181
             }
           )
+        end
         DCell.start(start_args)
       else
         keeper_node = Chef::Search::Query.new.search(:node, 'recipes:flock_of_chefs\:\:keeper').first.first
