@@ -5,7 +5,7 @@ module FlockOfChefs
     attr_accessor :node
 
     def run_chef!
-      chef_app.run_client!
+      chef_app.run_chef_client
     end
   end
 end
