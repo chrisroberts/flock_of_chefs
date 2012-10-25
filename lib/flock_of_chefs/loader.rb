@@ -1,8 +1,10 @@
 require 'dcell'
-require 'flock_of_chefs/flocked_api'
-require 'flock_of_chefs/flocked_chef'
-require 'flock_of_chefs/flocked_report'
+
+Dir[File.join(File.dirname(__FILE__), '**/*.rb')].each do |flock_file|
+  require flock_file
+end
 
 # Hook in our report handler
-Chef::Config.report_handlers << FlockOfChefs::FlockedReport.new
+Chef::Config.start_handlers << FlockOfChefs::StartConverge.new
+Chef::Config.report_handlers << FlockOfChefs::ConcludeConverge.new
 
