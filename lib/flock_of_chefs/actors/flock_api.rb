@@ -16,13 +16,10 @@ module FlockOfChefs
       @active = !!bool
     end
 
-    def run_chef!
+    def run_chef
       chef_app.run_chef_client
     end
 
-    def active?
-      active
-    end
   end
 end
 
