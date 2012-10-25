@@ -11,6 +11,7 @@ module FlockOfChefs
       if(dnode)
         dnode[:flock_api].node = node
         dnode[:flock_api].active = currently_active
+        DCell.me[:resource_manager].completed_run unless currently_active
         Chef::Log.info 'Node information successfully stored in flock'
       else
         Chef::Log.warn 'Failed to store node information in flock!'
