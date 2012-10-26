@@ -1,13 +1,15 @@
 module FlockOfChefs
   class ResourceManager
     include Celluloid
-    trap_exit :dead_resource
+
+    #    trap_exit :dead_resource
 
     attr_accessor :runner
 
     def initialize
       @resources = {}
       @stale_resources = {}
+      @subscriptions = {}
       @runner = nil
     end
 
@@ -63,9 +65,10 @@ module FlockOfChefs
       @subscriptions[resource_type][resource_name].uniq!
     end
 
-    def notify_subscribers(resource_type, resource_name)
-      if(@subscriptions[resource_type][resource_name])
-        @subscriptions[resource_type][resource_name].each do |info|
+    def notify_subscribers(resource)
+      resource_type = get_name(resource)
+      if(@subscriptions[resource_type] && @subscriptions[resource_type][resource.name])
+        @subscriptions[resource_type][resource.name].each do |info|
           DCell::Node[info[:node_id]][:resource_manager].notify_resource(
             info[:call_type], info[:call_name], info[:action]
           )
@@ -82,7 +85,7 @@ module FlockOfChefs
     def clean_stale_resources
       @stale_resources.values.each do |collection|
         collection.values.map do |actor|
-          actor.terminate if actor.alive?
+      #    actor.terminate if actor.alive?
         end
       end
       @stale_resources = {}
