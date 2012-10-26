@@ -5,7 +5,7 @@ module FlockOfChefs
   class FlockedReport < Chef::Handler
     def flocker(currently_active)
       unless(DCell.me)
-        FlockOfChefs.start_flocking!(node)
+        FlockOfChefs.start_flocking!(node) unless currently_active
       end
       dnode = DCell.me
       if(dnode)
@@ -25,7 +25,7 @@ module FlockOfChefs
     end
   end
 
-  class StopConverge < FlockedReport
+  class ConcludeConverge < FlockedReport
     def report
       flocker(false)
     end
@@ -38,7 +38,7 @@ module FlockOfChefs
       elsif(node[:flock_of_chefs][:bind_addr][:ip_address])
         node[:flock_of_chefs][:bind_addr][:ip_address]
       else
-        node.ip_address
+        node.ipaddress
       end
     end
 
@@ -46,7 +46,7 @@ module FlockOfChefs
       if(node[:flock_of_chefs][:registry][:ip_address])
         node[:flock_of_chefs][:registry][:ip_address]
       else
-        registry_node.ip_address
+        registry_node.ipaddress
       end
     end
 
