@@ -22,7 +22,7 @@ module FlockOfChefs
 
     def node(attribute_string=nil)
       if(attribute_string)
-        attribute_string.to_s.split('.').delete_if(&:empty?).inject(node) do |memo,arg|
+        attribute_string.to_s.split('.').delete_if(&:empty?).inject(@node) do |memo,arg|
           memo.send(arg)
         end
       else
