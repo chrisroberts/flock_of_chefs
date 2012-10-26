@@ -2,8 +2,10 @@ module FlockOfChefs
   module FlockedRunner
     def flocked_init(*args)
       original_initialize(*args)
-      DCell.me[:flock_api].active = true
-      DCell.me[:resource_manager].new_run(self)
+      if(DCell.me)
+        DCell.me[:flock_api].active = true
+        DCell.me[:resource_manager].new_run(self)
+      end
     end
 
     class << self
@@ -17,4 +19,6 @@ module FlockOfChefs
   end
 end
 
-Chef::Runner.send(:inclue, FlockOfChefs::FlockedRunner)
+unless(Chef::Runner.ancestors.include?(FlockOfChefs::FlockedRunner))
+  Chef::Runner.send(:include, FlockOfChefs::FlockedRunner)
+end
