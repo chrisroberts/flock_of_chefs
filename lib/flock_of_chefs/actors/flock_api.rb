@@ -20,6 +20,16 @@ module FlockOfChefs
       chef_app.run_chef_client
     end
 
+    def node(attribute_string)
+      attribute_string.split('.').delete_if(&:empty?).inject(node) do |memo,arg|
+        memo.send(arg)
+      end
+    end
+
+    def node_hash
+      node.to_hash
+    end
+
   end
 end
 
