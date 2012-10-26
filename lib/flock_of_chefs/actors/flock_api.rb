@@ -28,14 +28,12 @@ module FlockOfChefs
     def node(attribute_string=nil)
       if(attribute_string)
         begin
-          attribute_string.to_s.split('.').delete_if(&:empty?).inject(@node) do |memo,arg|
+          res = attribute_string.to_s.split('.').delete_if(&:empty?).inject(@node) do |memo,arg|
             memo.send(arg)
           end
-        rescue ArgumentError
-          nil
+          res.is_a?(Chef::Node::Attribute) ? res.to_hash : res
         rescue => e
-          Chef::Log.warn "FlockAPI error: #{e.class}: #{e}\n#{e.backtrace.join("\n")}"
-          nil
+          e
         end
       else
         node_hash
