@@ -20,9 +20,13 @@ module FlockOfChefs
       chef_app.run_chef_client
     end
 
-    def node(attribute_string)
-      attribute_string.split('.').delete_if(&:empty?).inject(node) do |memo,arg|
-        memo.send(arg)
+    def node(attribute_string=nil)
+      if(attribute_string)
+        attribute_string.to_s.split('.').delete_if(&:empty?).inject(node) do |memo,arg|
+          memo.send(arg)
+        end
+      else
+        node_hash
       end
     end
 
