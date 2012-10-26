@@ -19,6 +19,8 @@ module FlockOfChefs
   end
 end
 
-unless(Chef::Runner.ancestors.include?(FlockOfChefs::FlockedRunner))
-  Chef::Runner.send(:include, FlockOfChefs::FlockedRunner)
+if(defined?(Chef::Runner))
+  unless(Chef::Runner.ancestors.include?(FlockOfChefs::FlockedRunner))
+    Chef::Runner.send(:include, FlockOfChefs::FlockedRunner)
+  end
 end

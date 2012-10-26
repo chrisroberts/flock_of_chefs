@@ -33,22 +33,24 @@ module FlockOfChefs
   end
 end
 
-# Hook into Application classes
-%w(Client Solo WindowsService).each do |app|
-  begin
-    klass = Chef::Application.const_get(app)
-    unless(klass.ancestors.include?(FlockOfChefs::FlockedApplication))
-      klass.send(:include, FlockOfChefs::FlockedApplication)
+if(defined?(Chef::Application))
+  # Hook into Application classes
+  %w(Client Solo WindowsService).each do |app|
+    begin
+      klass = Chef::Application.const_get(app)
+      unless(klass.ancestors.include?(FlockOfChefs::FlockedApplication))
+        klass.send(:include, FlockOfChefs::FlockedApplication)
+      end
+    rescue NameError
+      # Not defined!
     end
-  rescue NameError
-    # Not defined!
   end
-end
 
-# Hook into existing instances if we are loading up via
-# cookbook not client.rb
-ObjectSpace.each_object(Chef::Application) do |app_inst|
-  unless(app_inst.respond_to?(:flocked_run_chef_client))
-    app_inst.extend(FlockOfChefs::FlockedApplication)
+  # Hook into existing instances if we are loading up via
+  # cookbook not client.rb
+  ObjectSpace.each_object(Chef::Application) do |app_inst|
+    unless(app_inst.respond_to?(:flocked_run_chef_client))
+      app_inst.extend(FlockOfChefs::FlockedApplication)
+    end
   end
 end
