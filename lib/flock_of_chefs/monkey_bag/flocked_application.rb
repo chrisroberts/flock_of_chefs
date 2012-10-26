@@ -37,7 +37,9 @@ end
 %w(Client Solo WindowsService).each do |app|
   begin
     klass = Chef::Application.const_get(app)
-    klass.send(:include, FlockOfChefs::FlockedApplication)
+    unless(klass.ancestors.include?(FlockOfChefs::FlockedApplication))
+      klass.send(:include, FlockOfChefs::FlockedApplication)
+    end
   rescue NameError
     # Not defined!
   end
