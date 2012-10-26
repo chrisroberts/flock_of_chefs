@@ -8,14 +8,14 @@ module FlockOfChefs
       super
       dnode = DCell.me
       if(dnode)
-        dnode[:resource_manager].register_resource(current_actor)
+        dnode[:resource_manager].register_resource(self)
       end
     end
 
     def flocked_run_action(*args)
       original_run_action(*args)
       if(updated_by_last_action? && DCell.me)
-        DCell.me[:resource_manager].send_remote_notifications(current_actor)
+        DCell.me[:resource_manager].notify_subscribers(self)
       end
     end
 
@@ -23,7 +23,7 @@ module FlockOfChefs
       r_type,r_name = break_resource_string(resource)
       DCell::Node[loc_hash[:node]][:resource_manager].subscription(
         DCell.me.id, r_type, r_name, 
-        convert_to_snake_case(current_actor.send(:class)), 
+        convert_to_snake_case(self.class), 
         name, action
       )
     end
@@ -53,7 +53,7 @@ end
 
 # Make all resources actors
 # TODO: Give them wait staff jobs while they wait for their big break
-Chef::Resource.send(:include, Celluloid)
+#Chef::Resource.send(:include, Celluloid)
 
 # Hook in custom functionality to all resources
 [
@@ -62,6 +62,8 @@ Chef::Resource.send(:include, Celluloid)
     klass = Chef::Resource.const_get(const)
     klass if klass.is_a?(Class) && klass < Chef::Resource
   }.compact
-].each do |klass|
-  klass.send(:include, FlockOfChefs::FlockedResources)
+].flatten.each do |klass|
+  unless(klass.ancestors.include?(FlockOfChefs::FlockedResources))
+    klass.send(:include, FlockOfChefs::FlockedResources)
+  end
 end
