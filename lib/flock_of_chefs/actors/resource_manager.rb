@@ -11,6 +11,14 @@ module FlockOfChefs
       @stale_resources = {}
       @subscriptions = {}
       @runner = nil
+      @delayed_notifications = []
+    end
+
+    def run_delayed_notifications
+      @delayed_notifications.each do |resource|
+        notifiy_subscribers(resource)
+      end
+      @delayed_notifications.clear
     end
 
     def new_run(runner)
