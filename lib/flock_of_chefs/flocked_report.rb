@@ -4,17 +4,24 @@ module FlockOfChefs
 
   class FlockedReport < Chef::Handler
     def flocker(currently_active)
-      unless(DCell.me)
-        FlockOfChefs.start_flocking!(node) unless currently_active
+      unless(FlockOfChefs.me)
+        FlockOfChefs.start_flocking!(node)
       end
-      dnode = DCell.me
+      dnode = FlockOfChefs.me
       if(dnode)
         dnode[:flock_api].node = node
         dnode[:flock_api].active = currently_active
-        DCell.me[:resource_manager].completed_run unless currently_active
-        Chef::Log.info 'Node information successfully stored in flock'
+        Chef::Log.info 'Node information successfully stored in flock.'
       else
-        Chef::Log.warn 'Failed to store node information in flock!'
+        Chef::Log.warn 'Failed to store node information in flock. No flock connection detected.'
+      end
+      if(!currently_active && dnode[:resource_manager])
+        Chef::Log.info 'Sending delayed notifications to flock'
+        all_resources.each do |res|
+          FlockOfChefs.get(:resource_manager).send_notifications(
+            resource, resource.action, :delayed
+          )
+        end
       end
     end
   end
@@ -51,6 +58,7 @@ module FlockOfChefs
     end
 
     def start_flocking!(node)
+      return if FlockOfChefs.me
       raise 'Flock of chefs cookbook not in use!' unless node[:flock_of_chefs]
       bind_addr = find_flock_bind_addr(node)
       if(node.recipes.include?('flock_of_chefs::keeper'))
