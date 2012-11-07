@@ -2,109 +2,109 @@ module FlockOfChefs
   class ResourceManager
     include Celluloid
 
-    #    trap_exit :dead_resource
-
     attr_accessor :runner
 
     def initialize
-      @resources = {}
       @stale_resources = {}
       @subscriptions = {}
+      @notifications = {}
       @runner = nil
-      @delayed_notifications = []
+      find_existing_runner!
     end
 
-    def run_delayed_notifications
-      @delayed_notifications.each do |resource|
-        notifiy_subscribers(resource)
-      end
-      @delayed_notifications.clear
+    def find_existing_runner!
+      @runner = ObjectSpace.each_object(Chef::Runner).first
     end
 
     def new_run(runner)
       @runner = runner
-      @stale_resources = @resources
-      @resources = {}
     end
 
-    def completed_run
-      clean_stale_resources
-      @stale_resources = {}
-    end
-
-    def register_resource(resource)
-      t_name = get_name(resource)
-      @resources[t_name] ||= {}
-      @resources[t_name][resource.name] = resource
-      kill_stale_resource(t_name, resource.name)
-    end
-
-    def kill_stale_resource(t_name, r_name)
-      if(@stale_resources[t_name] && @stale_resources[t_name][r_name])
-        if(@stale_resources[t_name][r_name].alive?)
-          @stale_resources[t_name][r_name].terminate
-        end
-        @stale_resources[t_name].delete(r_name)
+    ## New work start
+  
+    # sending to remote
+    #
+    def send_subscribe_to_resource(loc_res, r_type, r_name, action, timing)
+      determine_remote_nodes(loc_res).each do |r_node|
+        r_node.register_subscription(
+          FlockOfChefs.me.id, r_type, r_name, loc_res.resource_name,
+          loc_res.name, action, timing
+        )
       end
     end
 
-    def dead_resource(actor, reason)
-      kill_stale_resource(get_name(actor), actor.name)
+    def send_notifications(resource, action, timing)
+      collection = find_notify_collection(resource, action, timing)
+      notify_collection(collection, action) if collection
     end
 
-    def receive_remote_notification(t_name, r_name, action)
-      collection = [@stale_resources, @resources].detect{ |item|
-        item[t_name] && item[t_name][r_name]
-      }
-      if(collection)
-        @runner.run_action(collection[t_name][r_name], action)
-      end
+    def register_notification(loc_hash, l_resource, r_type, r_name, action, timing)
+      add_to_notitfications(loc_hash, l_resource.resource_name, l_resource.name, r_type, r_name, action, timing)
     end
 
-    def subscription(remote_node_id, resource_type, resource_name, call_type, call_name, action)
-      @subscriptions[resource_type] ||= {}
-      @subscriptions[resource_type][resource_name] ||= []
-      @subscriptions[resource_type][resource_name].push(
-        :node_id => remote_node_id,
-        :call_type => call_type,
-        :call_name => call_name,
-        :action => action
-      )
-      @subscriptions[resource_type][resource_name].uniq!
-    end
-
-    def notify_subscribers(resource)
-      resource_type = get_name(resource)
-      if(@subscriptions[resource_type] && @subscriptions[resource_type][resource.name])
-        @subscriptions[resource_type][resource.name].each do |info|
-          DCell::Node[info[:node_id]][:resource_manager].notify_resource(
-            info[:call_type], info[:call_name], info[:action]
+    def notify_collection(collection, action)
+      collection.each do |noti|
+        determine_remote_nodes(noti[:location_hash]).each do |r_node|
+          r_node.receive_notification(
+            noti[:remote_type],
+            noti[:remote_name],
+            action
           )
+        )
+      end
+    end
+
+    # receiving from remote
+    #
+
+    def register_subscription(node_id, l_type, l_name, r_type, r_name, action, timing)
+      add_to_notitfications({:node => node_id}, l_type, l_name, r_type, r_name, action, timing)
+    end
+
+    def receive_notification(res_type, res_name, action)
+      resource = @runner.run_context.resource_collection.lookup("#{res_type}[#{res_name}]")
+      if(resource)
+        @runner.run_action(resource, action)
+      end
+    end
+
+    ## Both
+    #
+    # loc_hash:: Hash definition for node location
+    # l_type:: Local resource type
+    # l_name:: Local resource name
+    # r_type:: Remote resource type
+    # r_name:: Remote resource name
+    # action:: Action to run on remote resource
+    # timiming:: Timing of notification (:immediately or :delayed)
+    def add_to_notifications(loc_hash, l_type, l_name, r_type, r_name, action, timing)
+      @notifications[l_type] ||= {}
+      @notifications[l_type][l_name] ||= {}
+      @notifications[l_type][l_name][action] ||= {}
+      @notifications[l_type][l_name][action][timing] ||= []
+      @notifications[l_type][l_name][action][timing].push(
+        :remote_type => r_type,
+        :remote_name => r_name,
+        :location_hash => loc_hash
+      )
+      @notifications[l_type][l_name][action][timing].uniq!
+    end
+
+    def find_notify_collection(resource, action, timing)
+      [resource.resource_name, resource.name, action, timing].inject(@notifications) do |m,o|
+        if(m && m[o])
+          m[o]
+        else
+          nil
         end
       end
     end
 
-    def notify_resource(resource_type, resource_name, action)
-      receive_remote_notification(
-        resource_type, resource_name, action
-      )
+    # TODO: Make this do proper searching instead of only direct node
+    def determine_remote_nodes(loc_hash)
+      [FlockOfChefs[loc_hash[:node]]].compact
     end
 
-    def clean_stale_resources
-      @stale_resources.values.each do |collection|
-        collection.values.map do |actor|
-      #    actor.terminate if actor.alive?
-        end
-      end
-      @stale_resources = {}
-    end
-
-    def get_name(resource)
-      # TODO: Check how the naming convention goes for LWRPs
-      Chef::Mixin::ConvertToClassName.convert_to_snake_case(
-        resource.class.to_s.split('::').last
-      )
-    end
   end
 end
 
