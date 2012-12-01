@@ -1,3 +1,5 @@
+require 'chef/search/query'
+
 module FlockOfChefs
   class ResourceManager
     include Celluloid
@@ -20,8 +22,6 @@ module FlockOfChefs
       @runner = runner
     end
 
-    ## New work start
-  
     # sending to remote
     #
     def send_subscribe_to_resource(loc_res, r_type, r_name, action, timing)
@@ -100,9 +100,40 @@ module FlockOfChefs
       end
     end
 
-    # TODO: Make this do proper searching instead of only direct node
+    # NOTE: Document this out some where people will actually read it
+    # loc_hash valid structure:
+    #   {:node => node.name}
+    #   {:roles => %w(role1 role2)}
+    #   {:recipes => %w(recipe1 recipe2)}
+    #   {:query => 'direct string query'}
+    #   {:environment => 'production'}
+    # - if node is provided, everything else is ignored
+    # - if multiple entries provided, they are ANDed together
     def determine_remote_nodes(loc_hash)
-      [FlockOfChefs[loc_hash[:node]]].compact
+      if(loc_hash[:node])
+        [FlockOfChefs[loc_hash[:node]]].compact
+      else
+        n_s = []
+        if(loc_hash[:roles])
+          n_s << loc_hash[:roles].map{|r|
+            "roles:#{r}"
+          }.join(' AND ')
+        end
+        if(loc_hash[:recipes])
+          n_s << loc_hash[:recipes].map{|r|
+            "recipes:#{r}"
+          }.join(' AND ')
+        end
+        if(loc_hash[:environment])
+          n_s << "chef_environment:#{loc_hash[:environment]}"
+        end
+        if(loc_hash[:query])
+          n_s << loc_hash[:query]
+        end
+        Chef::Search::Query.new.search(:node, n_s).map{ |node|
+          FlockOfChefs[node.name]
+        }.compact
+      end
     end
 
   end
