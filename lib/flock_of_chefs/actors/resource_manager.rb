@@ -50,7 +50,7 @@ module FlockOfChefs
             noti[:remote_name],
             action
           )
-        )
+        end
       end
     end
 
