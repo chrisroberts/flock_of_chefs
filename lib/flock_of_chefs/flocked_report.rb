@@ -12,16 +12,16 @@ module FlockOfChefs
         dnode[:flock_api].node = node
         dnode[:flock_api].active = currently_active
         Chef::Log.info 'Node information successfully stored in flock.'
+        if(!currently_active && dnode[:resource_manager])
+          Chef::Log.info 'Sending delayed notifications to flock'
+          all_resources.each do |res|
+            FlockOfChefs.get(:resource_manager).send_notifications(
+              resource, resource.action, :delayed
+            )
+          end
+        end
       else
         Chef::Log.warn 'Failed to store node information in flock. No flock connection detected.'
-      end
-      if(!currently_active && dnode[:resource_manager])
-        Chef::Log.info 'Sending delayed notifications to flock'
-        all_resources.each do |res|
-          FlockOfChefs.get(:resource_manager).send_notifications(
-            resource, resource.action, :delayed
-          )
-        end
       end
     end
   end
@@ -58,45 +58,31 @@ module FlockOfChefs
     end
 
     def start_flocking!(node)
-      return if FlockOfChefs.me
-      raise 'Flock of chefs cookbook not in use!' unless node[:flock_of_chefs]
-      bind_addr = find_flock_bind_addr(node)
-      if(node.recipes.include?('flock_of_chefs::keeper'))
-        # We are the keeper!
-        start_args = {
-          :node => node.name,
-          :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}"
-        }
-        # TODO: Add in the other adapters
-        case node[:flock_of_chefs][:registry][:type].to_s
-        when 'zk'
-          require 'dcell/registries/zk_adapter'
-          start_args.merge!(
-            :registry => {
-              :adapter => 'zk',
-              :server => '127.0.0.1:2181'
-            }
-          )
-        else
-          start_args.merge!(
-            :registry => {
-              :adapter => 'gossip'
-            }
-          )
-        end
-        DCell.start(start_args)
+      if(node[:flock_of_chefs].nil? || node[:flock_of_chefs][:enabled] != true)
+        Chef::Log.error 'Flock of Chefs is not currently enabled. `node[:flock_of_chefs][:enabled] = true` to enable'
+      elsif(FlockOfChefs.me)
+        Chef::Log.debug 'Flocking is already enabled'
       else
-        keeper_node = Chef::Search::Query.new.search(:node, 
-          'recipes:flock_of_chefs\:\:keeper'
-        ).first.first
-        registry_ip = find_flock_registry_addr(node, keeper_node)
-        raise 'Failed to find flock keeper!' unless keeper_node
+        zk_search = 'zk_id:*'
+        if(node[:flock_of_chefs][:zk_env])
+          zk_search << " AND chef_environment:#{node[:flock_of_chefs][:zk_env]}"
+        end
+        zk_nodes = search(:node, zk_search)
+
+        if(zk_nodes.empty?)
+          Chef::Log.error 'Failed to locate flock registry (zookeeper nodes)'
+          return 
+        end
+
+        bind_addr = find_flock_bind_addr(node)
         DCell.start(
           :node => node.name,
           :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
-          :directory => {
-            :id => keeper_node.name,
-            :addr => "tcp://#{registry_ip}:#{keeper_node[:flock_of_chefs][:port]}"
+          :registry => {
+            :adapter => 'zk',
+            :servers => zk_nodes.map{|zk| 
+              "tcp://#{zk[:ipaddress]}:#{zk[:zookeeperd][:config][:client_port]}"
+            }
           }
         )
       end
