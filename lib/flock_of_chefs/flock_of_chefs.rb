@@ -5,7 +5,9 @@ module FlockOfChefs
     end
 
     def get(key)
-      DCell.me[key]
+      if(me)
+        me[key]
+      end
     end
 
     def me
