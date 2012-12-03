@@ -1,4 +1,5 @@
 require 'chef/handler'
+require 'chef/search/query'
 
 module FlockOfChefs
 
@@ -14,7 +15,7 @@ module FlockOfChefs
         Chef::Log.info 'Node information successfully stored in flock.'
         if(!currently_active && dnode[:resource_manager])
           Chef::Log.info 'Sending delayed notifications to flock'
-          all_resources.each do |res|
+          all_resources.each do |resource|
             FlockOfChefs.get(:resource_manager).send_notifications(
               resource, resource.action, :delayed
             )
@@ -67,7 +68,7 @@ module FlockOfChefs
         if(node[:flock_of_chefs][:zk_env])
           zk_search << " AND chef_environment:#{node[:flock_of_chefs][:zk_env]}"
         end
-        zk_nodes = search(:node, zk_search)
+        zk_nodes = Array(Chef::Search::Query.new.search(:node, zk_search).first)
 
         if(zk_nodes.empty?)
           Chef::Log.error 'Failed to locate flock registry (zookeeper nodes)'
@@ -75,14 +76,20 @@ module FlockOfChefs
         end
 
         bind_addr = find_flock_bind_addr(node)
+        require 'dcell/registries/zk_adapter'
+        # NOTE: zk gem expects comma delimited list of servers, not a
+        # splat like dcells attempts. so for now we just join them up
+        # here and send them on
         DCell.start(
           :node => node.name,
           :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
           :registry => {
             :adapter => 'zk',
-            :servers => zk_nodes.map{|zk| 
-              "tcp://#{zk[:ipaddress]}:#{zk[:zookeeperd][:config][:client_port]}"
-            }
+            :server => zk_nodes.map{|zk|
+              con = "#{zk[:ipaddress]}:#{zk[:zookeeperd][:config][:client_port]}"
+              Chef::Log.info "Flock: Detected zookeeper node: #{zk.inspect} -> #{con}"
+              con
+            }.join(',')
           }
         )
       end
