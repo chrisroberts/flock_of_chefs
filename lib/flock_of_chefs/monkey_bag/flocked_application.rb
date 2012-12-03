@@ -11,22 +11,26 @@ module FlockOfChefs
 
     def flocked_run_chef_client
       mutex.synchronize do
-        original_run_chef_client
+        unflocked_run_chef_client
       end
     end
 
     class << self
       def included(base)
         base.class_eval do
-          alias_method :original_run_chef_client, :run_chef_client
-          alias_method :run_chef_client, :flocked_run_chef_client
+          unless(base.instance_methods.map(&:to_sym).include?(:unflocked_run_chef_client))
+            alias_method :unflocked_run_chef_client, :run_chef_client
+            alias_method :run_chef_client, :flocked_run_chef_client
+          end
         end
       end
 
       def extended(base)
         base.instance_eval do
-          alias :original_run_chef_client :run_chef_client
-          alias :run_chef_client :flocked_run_chef_client
+          unless(base.methods.map(&:to_sym).include?(:unflocked_run_chef_client))
+            alias :unflocked_run_chef_client :run_chef_client
+            alias :run_chef_client :flocked_run_chef_client
+          end
         end
       end
     end
