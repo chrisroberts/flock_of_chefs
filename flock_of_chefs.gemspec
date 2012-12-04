@@ -15,4 +15,5 @@ Gem::Specification.new do |s|
   s.files = Dir['**/*']
   s.add_dependency 'chef'
   s.add_dependency 'dcell', '~> 0.10.0'
+  s.add_dependency 'zk'
 end
