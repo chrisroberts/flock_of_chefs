@@ -76,22 +76,47 @@ module FlockOfChefs
         end
 
         bind_addr = find_flock_bind_addr(node)
+        base_hsh = {
+          :id => node.name,
+          :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}"
+        }
+        zk_nodes = zk_nodes.map{|zk|
+          con = "#{zk[:ipaddress]}:#{zk[:zookeeperd][:config][:client_port]}"
+          Chef::Log.info "Flock: Detected zookeeper node: #{zk.inspect} -> #{con}"
+          con
+        }.join(',')
+
         require 'dcell/registries/zk_adapter'
+        z = ZK.new(zk_nodes)
+        # Attribute this
+        dir = Marshal.load(
+          z.get("/flock_of_chefs/#{node.chef_environment}/directory").first
+        )
+        if(dir[:name] == node.name)
+          Chef::Log.info 'Flock: This is the directory node. Hooking into ZK'
+          base_hsh = {
+            :id => node.name,
+            :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
+            :registry => {
+              :adapter => 'zk',
+              :servers => [zk_nodes]
+            }
+          }
+        else
+          Chef::Log.info "Flock: Connecting to directory node: #{dir[:name]}"
+          base_hsh = {
+            :id => node.name,
+            :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
+            :directory => {
+              :id => dir[:name],
+              :addr => "tcp://#{dir[:address]}:#{dir[:port]}"
+            }
+          }
+        end
         # NOTE: zk gem expects comma delimited list of servers, not a
         # splat like dcells attempts. so for now we just join them up
         # here and send them on
-        DCell.start(
-          :node => node.name,
-          :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
-          :registry => {
-            :adapter => 'zk',
-            :server => zk_nodes.map{|zk|
-              con = "#{zk[:ipaddress]}:#{zk[:zookeeperd][:config][:client_port]}"
-              Chef::Log.info "Flock: Detected zookeeper node: #{zk.inspect} -> #{con}"
-              con
-            }.join(',')
-          }
-        )
+        DCell.start(base_hsh)
       end
     end
   end
