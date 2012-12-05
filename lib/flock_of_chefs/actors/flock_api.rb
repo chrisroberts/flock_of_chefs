@@ -18,7 +18,9 @@ module FlockOfChefs
 
     def run_chef
       begin
-        chef_app.run_chef_client
+        Thread.new do
+          @chef_app.run_chef_client
+        end
         true
       rescue
         false
