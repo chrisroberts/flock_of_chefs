@@ -11,6 +11,7 @@ module FlockOfChefs
       dnode = FlockOfChefs.me
       if(dnode)
         dnode[:flock_api].node = node
+        dnode[:flock_api].chef_app = ObjectSpace.each_object(Chef::Application).map.first
         dnode[:flock_api].active = currently_active
         Chef::Log.info 'Node information successfully stored in flock.'
         if(!currently_active && dnode[:resource_manager])
@@ -87,36 +88,18 @@ module FlockOfChefs
         }.join(',')
 
         require 'dcell/registries/zk_adapter'
-        z = ZK.new(zk_nodes)
-        # Attribute this
-        dir = Marshal.load(
-          z.get("/flock_of_chefs/#{node.chef_environment}/directory").first
-        )
-        if(dir[:name] == node.name)
-          Chef::Log.info 'Flock: This is the directory node. Hooking into ZK'
-          base_hsh = {
-            :id => node.name,
-            :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
-            :registry => {
-              :adapter => 'zk',
-              :servers => [zk_nodes]
-            }
-          }
-        else
-          Chef::Log.info "Flock: Connecting to directory node: #{dir[:name]}"
-          base_hsh = {
-            :id => node.name,
-            :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
-            :directory => {
-              :id => dir[:name],
-              :addr => "tcp://#{dir[:address]}:#{dir[:port]}"
-            }
-          }
-        end
         # NOTE: zk gem expects comma delimited list of servers, not a
         # splat like dcells attempts. so for now we just join them up
         # here and send them on
-        DCell.start(base_hsh)
+        DCell.start(
+          :id => node.name,
+          :addr => "tcp://#{bind_addr}:#{node[:flock_of_chefs][:port]}",
+          :registry => {
+            :adapter => 'zk',
+            :servers => [zk_nodes]
+          }
+        )
+        Chef::Log.info "Currently visible nodes: #{DCell::Node.all}"
       end
     end
   end
