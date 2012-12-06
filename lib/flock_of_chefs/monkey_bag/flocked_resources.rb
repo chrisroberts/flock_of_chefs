@@ -7,7 +7,6 @@ module FlockOfChefs
       args.delete(loc_hash)
       timing = args.first || :immediately
       r_type,r_name = break_resource_string(resource)
-      # TODO: Update this to accept discovery based attributes instead of just 'node'
       FlockOfChefs.get(:resource_manager).send_subscribe_to_resource(
         loc_hash, self, r_type, r_name, action, timing
       )
