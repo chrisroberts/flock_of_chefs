@@ -12,14 +12,14 @@ can solve and how it can be made better.
 ## How does it work
 
 Flock of Chefs uses DCell to provide inter-node communications. It uses Celluloid
-actors to provide APIs remote nodes can interact with. Resources will be implicitly
-converted to actors and will happily exist even after a convergence has completed.
+actors to provide APIs with with remote nodes can interact. It also persists
+resources allowing for out of band action notifications.
 
 ## Wait, what?
 
 Yep, resources are persisted after the convergence has completed. This allows
 resources to be defined during the Chef run that subscribe to remote resouces.
-Since remote convergence may not by occurring in a timely manner, we want to
+Since remote convergence may not be occurring in a timely manner, we want to
 allow the local convergence to continue on, allowing the resources with
 remote subscriptions to run when they are notified.
 
@@ -37,7 +37,7 @@ Methods provided from the `:flock_api`
 Example of triggering a Chef client run:
 
 ```ruby
-DCell::Node['bender0'][:flock_api].run_chef
+FlockOfChefs['bender0'][:flock_api].run_chef
 ```
 
 ## Usage
@@ -74,7 +74,7 @@ file '/tmp/fubar' do
   action :create
   content 'foobar'
   wait_until do
-    DCell::Node['bender0'][:flock_api].active
+    FlockOfChefs['bender0'][:flock_api].active
   end
 end
 ```
@@ -85,7 +85,7 @@ file '/tmp/fubar' do
   action :create
   content 'foobar'
   wait_while do
-    DCell::Node['bender0'][:flock_api].active
+    FlockOfChefs['bender0'][:flock_api].active
   end
 end
 ```
