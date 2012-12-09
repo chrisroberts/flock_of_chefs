@@ -14,6 +14,6 @@ Gem::Specification.new do |s|
   s.extra_rdoc_files = ['README.md']  
   s.files = Dir['**/*']
   s.add_dependency 'chef'
-  s.add_dependency 'cr-dcell-edge'
+  s.add_dependency 'cr-dcell'
   s.add_dependency 'zk'
 end
