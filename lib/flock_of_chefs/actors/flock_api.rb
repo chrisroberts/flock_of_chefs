@@ -46,6 +46,10 @@ module FlockOfChefs
       node.to_hash
     end
 
+    def raw_node
+      @node
+    end
+
   end
 end
 

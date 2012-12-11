@@ -2,15 +2,9 @@ require 'thread'
 
 module FlockOfChefs
   module FlockedApplication
-    def mutex
-      unless(@mutex)
-        @mutex = Mutex.new
-      end
-      @mutex
-    end
 
     def flocked_run_chef_client
-      mutex.synchronize do
+      FlockOfChefs.global_chef_lock do
         unflocked_run_chef_client
       end
     end

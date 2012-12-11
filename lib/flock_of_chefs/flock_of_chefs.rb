@@ -13,5 +13,18 @@ module FlockOfChefs
     def me
       DCell.me
     end
+
+    def global_chef_lock
+      unless(@mutex)
+        @mutex = Mutex.new
+      end
+      if(block_given?)
+        @mutex.syncronize do
+          yield
+        end
+      else
+        @mutex
+      end
+    end
   end
 end

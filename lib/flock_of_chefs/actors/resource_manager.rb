@@ -63,9 +63,12 @@ module FlockOfChefs
 
     def receive_notification(res_type, res_name, action)
       Chef::Log.info "Received remote notification for: #{res_type}[#{res_name}] - #{action}"
-      resource = @runner.run_context.resource_collection.lookup("#{res_type}[#{res_name}]")
-      if(resource)
-        @runner.run_action(resource, action)
+      FlockOfChefs.global_chef_lock do
+        resource = @runner.run_context.resource_collection.lookup("#{res_type}[#{res_name}]")
+        if(resource)
+          @runner.run_action(resource, action)
+          FlockOfChefs.get(:flock_api).raw_node.save
+        end
       end
     end
 
