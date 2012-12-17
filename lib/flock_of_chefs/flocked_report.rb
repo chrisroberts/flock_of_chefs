@@ -36,6 +36,24 @@ module FlockOfChefs
   class ConcludeConverge < FlockedReport
     def report
       flocker(false)
+      store_resources_stamps
+    end
+
+    def store_resource_stamps
+      updated_resources.each do |resource|
+        store_last_stamp(resource.resource_name, resource.name)
+      end
+      FlockOfChefs.get(:flock_api).raw_node.save
+    end
+
+    # res_type:: Resource type
+    # res_name:: Resource name
+    # Stores timestamp in node data of last run
+    def store_lastrun_stamp(res_type, res_name)
+      api = FlockOfChefs.get(:flock_api)
+      api.raw_node[:flock_of_chefs][:action_register] ||= Mash.new
+      api.raw_node[:flock_of_chefs][:action_register][res_type] ||= Mash.new
+      api.raw_node[:flock_of_chefs][:action_register][res_type][res_name] = Time.now.to_i
     end
   end
 
