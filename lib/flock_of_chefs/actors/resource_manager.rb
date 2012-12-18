@@ -29,8 +29,31 @@ module FlockOfChefs
           FlockOfChefs.me.id, r_type, r_name, loc_res.resource_name,
           loc_res.name, action, timing
         )
+        store_subscription(
+          r_node[:name], FlockOfChefs.me.id, r_type, r_name, 
+          loc_res.resource_name, loc_res.name, action, timing
+        )
       end
     end
+
+    def store_subscription(r_name, sub_id, r_type, r_name, l_type, l_name, action, timing)
+      subs = FlockOfChefs.get(:api).raw_node[:flock_of_chefs][:subscriptions] || {}
+      subs = Mash.new(subs.to_hash)
+      subs[r_name][l_type] ||= Mash.new
+      subs[r_name][l_type][l_name] ||= Mash.new
+      subs[r_name][l_type][l_name][action] ||= Mash.new
+      subs[r_name][l_type][l_name][action][timing] ||= []
+      subs[r_name][l_type][l_name][action][timing].push(
+        Mash.new(
+          :remote_type => r_type,
+          :remote_name => r_name,
+          :destination_id => sub_id
+        )
+      )
+      subs[r_name][l_type][l_name][action][timing].uniq!
+      FlockOfChefs.get(:api).raw_node[:flock_of_chefs][:subscriptions] = subs
+    end
+
 
     def send_notifications(resource, action, timing)
       collection = find_notify_collection(resource, action, timing)
