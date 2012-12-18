@@ -5,9 +5,7 @@ module FlockOfChefs
 
   class FlockedReport < Chef::Handler
     def flocker(currently_active)
-      unless(FlockOfChefs.me)
-        FlockOfChefs.start_flocking!(node)
-      end
+      FlockOfChefs.start_flocking!(node)
       dnode = FlockOfChefs.me
       if(dnode)
         dnode[:flock_api].node = node
@@ -25,6 +23,7 @@ module FlockOfChefs
       else
         Chef::Log.warn 'Failed to store node information in flock. No flock connection detected.'
       end
+      node.save # always save after handling
     end
   end
 
@@ -59,23 +58,37 @@ module FlockOfChefs
       end
     end
 
+    def zk_search(node)
+      zk_search = 'zk_id:*'
+      if(node[:flock_of_chefs][:zk_env])
+        zk_search << " AND chef_environment:#{node[:flock_of_chefs][:zk_env]}"
+      end
+      Array(Chef::Search::Query.new.search(:node, zk_search).first)
+    end
+
     def start_flocking!(node)
       if(node[:flock_of_chefs].nil? || node[:flock_of_chefs][:enabled] != true)
         Chef::Log.error 'Flock of Chefs is not currently enabled. `node[:flock_of_chefs][:enabled] = true` to enable'
-      elsif(FlockOfChefs.me)
-        Chef::Log.debug 'Flocking is already enabled'
       else
-        zk_search = 'zk_id:*'
-        if(node[:flock_of_chefs][:zk_env])
-          zk_search << " AND chef_environment:#{node[:flock_of_chefs][:zk_env]}"
-        end
-        zk_nodes = Array(Chef::Search::Query.new.search(:node, zk_search).first)
+        zk_nodes = zk_search(node)
+        node[:flock_of_chefs][:zk_nodes] ||= []
 
         if(zk_nodes.empty?)
           Chef::Log.error 'Failed to locate flock registry (zookeeper nodes)'
           return 
         end
+        zk_names = zk_nodes.map(&:name).sort
 
+        if((node[:flock_of_chefs][:zk_nodes] + zk_names).uniq.sort != zk_names || FlockOfChefs.me.nil?)
+          connect_to_flock(node, zk_nodes)
+          Chef::Log.info 'Connection to flock established!'
+          node[:flock_of_chefs][:zk_nodes] = zk_names
+        else
+          Chef::Log.debug 'Already connected to flock!'
+        end
+      end
+
+      def connect_to_flock(node, zk_nodes)
         bind_addr = find_flock_bind_addr(node)
         base_hsh = {
           :id => node.name,
@@ -99,7 +112,7 @@ module FlockOfChefs
             :servers => [zk_nodes]
           }
         )
-        Chef::Log.info "Currently visible nodes: #{DCell::Node.all}"
+        Chef::Log.debug "Currently visible nodes: #{DCell::Node.all}"
       end
     end
   end
