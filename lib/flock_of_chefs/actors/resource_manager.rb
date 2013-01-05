@@ -24,33 +24,34 @@ module FlockOfChefs
     #
     def send_subscribe_to_resource(loc_hash, loc_res, r_type, r_name, action, timing)
       loc_hash = Mash.new(loc_hash)
+      store_subscription(
+        loc_hash, FlockOfChefs.me.id, r_type, r_name, 
+        loc_res.resource_name, loc_res.name, action, timing
+      )
       determine_remote_nodes(loc_hash).each do |r_node|
         r_node[:resource_manager].register_subscription(
           FlockOfChefs.me.id, r_type, r_name, loc_res.resource_name,
           loc_res.name, action, timing
         )
-        store_subscription(
-          r_node[:name], FlockOfChefs.me.id, r_type, r_name, 
-          loc_res.resource_name, loc_res.name, action, timing
-        )
       end
     end
 
-    def store_subscription(r_name, sub_id, r_type, r_name, l_type, l_name, action, timing)
+    # Subscription storage to hook newly available nodes
+    def store_subscription(loc_hash, sub_id, r_type, r_name, l_type, l_name, action, timing)
       subs = FlockOfChefs.get(:api).raw_node[:flock_of_chefs][:subscriptions] || {}
       subs = Mash.new(subs.to_hash)
-      subs[r_name][l_type] ||= Mash.new
-      subs[r_name][l_type][l_name] ||= Mash.new
-      subs[r_name][l_type][l_name][action] ||= Mash.new
-      subs[r_name][l_type][l_name][action][timing] ||= []
-      subs[r_name][l_type][l_name][action][timing].push(
+      subs[loc_hash][l_type] ||= Mash.new
+      subs[loc_hash][l_type][l_name] ||= Mash.new
+      subs[loc_hash][l_type][l_name][action] ||= Mash.new
+      subs[loc_hash][l_type][l_name][action][timing] ||= []
+      subs[loc_hash][l_type][l_name][action][timing].push(
         Mash.new(
           :remote_type => r_type,
           :remote_name => r_name,
           :destination_id => sub_id
         )
       )
-      subs[r_name][l_type][l_name][action][timing].uniq!
+      subs[loc_hash][l_type][l_name][action][timing].uniq!
       FlockOfChefs.get(:api).raw_node[:flock_of_chefs][:subscriptions] = subs
     end
 
